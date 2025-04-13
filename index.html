@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteGenius - AI Lecture Note Summarizer</title>
+  <style>
+    :root {
+      --primary: #b26a47; /* coffee brown */
+      --primary-light: #d9a67b;
+      --primary-dark: #8a4b2c;
+      --secondary: #ffa726; /* orange button */
+      --text: #3e2b23;
+      --bg-light: #f2e8dc;
+      --bg-dark: #3e2b23;
+      --gray: #c9b6a7;
+      --border-radius: 12px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      font-family: 'Georgia', serif;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #fffaf5;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 280px;
+      background-color: var(--bg-light);
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow);
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .sidebar-header .logo {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-right: 0.5rem;
+    }
+
+    .sidebar-header h2 {
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+
+    .note-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      overflow-y: auto;
+    }
+
+    .note-item {
+      padding: 1rem;
+      background-color: white;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .note-item:hover {
+      background-color: rgba(178, 106, 71, 0.1);
+    }
+
+    .note-item.active {
+      background-color: rgba(178, 106, 71, 0.2);
+    }
+
+    .note-item h3 {
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+      color: var(--text);
+    }
+
+    .note-item p {
+      font-size: 0.85rem;
+      color: var(--gray);
+    }
+
+    .new-note-btn {
+      margin-top: 1.5rem;
+      padding: 0.75rem;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .new-note-btn:hover {
+      background-color: var(--primary-dark);
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: #fffaf5;
+    }
+
+    header {
+      padding: 1.5rem 2rem;
+      background-color: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      color: var(--text);
+    }
+
+    .tabs {
+      display: flex;
+      padding: 0 2rem;
+      margin-top: 2rem;
+      gap: 1.5rem;
+    }
+
+    .tab {
+      background-color: white;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+
+    .tab:hover {
+      background-color: rgba(178, 106, 71, 0.1);
+    }
+
+    .tab.active {
+      background-color: rgba(178, 106, 71, 0.2);
+      border-color: var(--primary-dark);
+    }
+
+    .container {
+      flex: 1;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-output-container {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      flex: 1;
+    }
+
+    @media (min-width: 1024px) {
+      .input-output-container {
+        flex-direction: row;
+      }
+    }
+
+    .tab-content {
+      display: none;
+      flex: 1;
+      background-color: white;
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .summary-container {
+      flex: 1;
+      background-color: #fff8f2;
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      min-height: 300px;
+    }
+
+    .summary-container h2 {
+      color: var(--primary);
+      margin-bottom: 1rem;
+    }
+
+    textarea, 
+    input[type="text"], 
+    input[type="file"] {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--gray);
+      background-color: #fffcf8;
+    }
+
+    textarea {
+      min-height: 200px;
+      resize: vertical;
+    }
+
+    .submit-btn {
+      width: 100%;
+      margin-top: 1.5rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+      font-weight: bold;
+      background-color: var(--secondary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .submit-btn:hover {
+      background-color: #fb8c00;
+    }
+
+    .loading {
+      display: none;
+      justify-content: center;
+      align-items: center;
+      margin: 2rem 0;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 5px solid var(--gray);
+      border-top: 5px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        height: auto;
+        padding: 1rem;
+      }
+      
+      .main-content {
+        width: 100%;
+      }
+      
+      .tabs {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo"></div>
+      <h1>NoteGenius</h1>
+    </div>
+    
+    <div class="note-list">
+      <div class="note-item active">
+        <h3>Physics Lecture 3</h3>
+        <p>Updated 2 hours ago</p>
+      </div>
+      <div class="note-item">
+        <h3>Economics 101</h3>
+        <p>Updated yesterday</p>
+      </div>
+      <div class="note-item">
+        <h3>Computer Science</h3>
+        <p>Updated 3 days ago</p>
+      </div>
+      <div class="note-item">
+        <h3>Biology Notes</h3>
+        <p>Updated 5 days ago</p>
+      </div>
+    </div>
+    
+    <button class="new-note-btn">+ New Summary</button>
+  </div>
+  
+  <div class="main-content">
+    <header>
+      <h1>AI Lecture Note Summarizer</h1>
+    </header>
+    
+    <div class="tabs">
+      <div class="tab active" data-target="text">Text Notes</div>
+      <div class="tab" data-target="youtube">YouTube Video</div>
+      <div class="tab" data-target="pdf">PDF Document</div>
+    </div>
+    
+    <div class="container">
+      <div class="input-output-container">
+        <div class="tab-content active" id="text-content">
+          <h2>Paste Your Lecture Notes</h2>
+          <textarea rows="8" placeholder="Paste your notes here..."></textarea>
+          <button class="submit-btn">Summarize Text</button>
+        </div>
+        
+        <div class="tab-content" id="youtube-content">
+          <h2>Enter YouTube Video Link</h2>
+          <input type="text" placeholder="https://www.youtube.com/watch?v=...">
+          <button class="submit-btn">Summarize Video</button>
+        </div>
+        
+        <div class="tab-content" id="pdf-content">
+          <h2>Upload PDF File</h2>
+          <input type="file" accept=".pdf">
+          <button class="submit-btn">Summarize PDF</button>
+        </div>
+        
+        <div class="summary-container">
+          <h2>Summary</h2>
+          <div class="loading">
+            <div class="spinner"></div>
+          </div>
+          <p>Your summarized content will appear here after processing.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Tab switching functionality
+      const tabs = document.querySelectorAll('.tab');
+      const contents = document.querySelectorAll('.tab-content');
+      
+      tabs.forEach(tab => {
+        tab.addEventListener('click', function () {
+          tabs.forEach(t => t.classList.remove('active'));
+          contents.forEach(c => c.classList.remove('active'));
+          
+          this.classList.add('active');
+          const targetId = this.getAttribute('data-target') + '-content';
+          document.getElementById(targetId).classList.add('active');
+        });
+      });
+
+      // Note item selection
+      const noteItems = document.querySelectorAll('.note-item');
+      noteItems.forEach(item => {
+        item.addEventListener('click', function() {
+          noteItems.forEach(ni => ni.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+
+      // New note button functionality
+      const newNoteBtn = document.querySelector('.new-note-btn');
+      newNoteBtn.addEventListener('click', function() {
+        // Reset all input fields
+        document.querySelector('#text-content textarea').value = '';
+        document.querySelector('#youtube-content input').value = '';
+        document.querySelector('#pdf-content input[type="file"]').value = '';
+        document.querySelector('.summary-container p').innerText = 'Your summarized content will appear here after processing.';
+        
+        // Create a new note item
+        const newItem = document.createElement('div');
+        newItem.className = 'note-item';
+        newItem.innerHTML = `<h3>New Summary</h3><p>Just now</p>`;
+        
+        // Add click event to the new item
+        newItem.addEventListener('click', function() {
+          noteItems.forEach(ni => ni.classList.remove('active'));
+          this.classList.add('active');
+        });
+        
+        // Add to the beginning of the list
+        const noteList = document.querySelector('.note-list');
+        noteList.insertBefore(newItem, noteList.firstChild);
+      });
+
+      // Summary generation functionality
+      const submitButtons = document.querySelectorAll('.submit-btn');
+
+      submitButtons.forEach((btn, idx) => {
+        btn.addEventListener('click', () => {
+          let input;
+          if (idx === 0) {
+            input = document.querySelector('#text-content textarea').value;
+            if (!input.trim()) {
+              alert("Please enter some text to summarize.");
+              return;
+            }
+            generateSummary(input, 'text');
+          } else if (idx === 1) {
+            input = document.querySelector('#youtube-content input').value;
+            if (!input.trim()) {
+              alert("Please enter a YouTube URL.");
+              return;
+            }
+            generateSummary(`Summarize this YouTube video: ${input}`, 'youtube');
+          } else if (idx === 2) {
+            const fileInput = document.querySelector('#pdf-content input[type="file"]');
+            if (fileInput.files.length === 0) {
+              alert("Please upload a PDF file first.");
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = function () {
+              const text = reader.result;
+              generateSummary(text, 'pdf');
+            };
+            reader.readAsText(fileInput.files[0]);
+          }
+        });
+      });
+    });
+
+    async function generateSummary(input, type = 'text') {
+      const loading = document.querySelector('.loading');
+      const summaryOutput = document.querySelector('.summary-container p');
+      loading.style.display = 'flex';
+      summaryOutput.innerText = '';
+
+      const apiKey = "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"; // <- Replace this
+
+      try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:5500",
+            "X-Title": "NoteGenius"
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [
+              { role: "system", content: "You are a helpful summarizer for lecture notes." },
+              { role: "user", content: input }
+            ],
+            temperature: 0.5
+          })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+        summaryOutput.innerText = data.choices?.[0]?.message?.content || "No summary found.";
+      } catch (err) {
+        summaryOutput.innerText = "Error: " + err.message;
+        console.error(err);
+      } finally {
+        loading.style.display = 'none';
+      }
+      try {
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error.message || "API error occurred");
+        }
+        
+        const summary = data.choices?.[0]?.message?.content || "Unable to generate summary.";
+        output.innerText = summary;
+        
+        // Update the active note item with a title from the first line of the summary
+        let title = summary.split('\n')[0].substring(0, 25);
+        if (title.length >= 25) title += '...';
+        
+        const activeNote = document.querySelector('.note-item.active');
+        if (activeNote) {
+          activeNote.querySelector('h3').innerText = title;
+          activeNote.querySelector('p').innerText = 'Just now';
+        }
+      } catch (error) {
+        output.innerText = "An error occurred while summarizing: " + error.message;
+        console.error(error);
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
